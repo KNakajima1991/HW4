@@ -6,8 +6,42 @@ class MoviesController < ApplicationController
     # will render app/views/movies/show.<extension> by default
   end
 
+  #def index
+  #  @movies = Movie.all
+  #end
+  
   def index
-    @movies = Movie.all
+    allmovies=Hash.new
+    for ratings in Movie.all_ratings
+      allmovies[ratings]="1"
+    end
+    #print(allmovies)
+    if params[:ratings]
+      session[:ratings] = params[:ratings]
+    elsif params[:utf8]
+      session[:ratings]=allmovies
+    elsif session[:ratings].nil?
+      session[:ratings] = Hash.new
+    end
+  
+    if params[:sort]
+      session[:sort] = params[:sort]
+    elsif session[:sort].nil?
+      session[:sort] = Hash.new
+    end
+    
+    @ratings_to_show = session[:ratings]
+    if params[:utf8] and !params[:ratings]
+      @ratings_to_show=[]
+    end
+    
+    #@ratings_to_show = @ratings
+    @all_ratings = Movie.all_ratings
+    
+    @movie=Movie.all
+    @movie = Movie.where(:rating => session[:ratings].keys)
+    @movie = @movie.order(session[:sort])
+  
   end
 
   def new
@@ -37,11 +71,23 @@ class MoviesController < ApplicationController
     flash[:notice] = "Movie '#{@movie.title}' deleted."
     redirect_to movies_path
   end
+  
+  def similar
+    @movie = Movie.find(params[:id])
+    if @movie.director.blank?
+      flash[:notice] = "'#{@movie.title}' has no director info."
+      redirect_to movies_path
+    else
+      @movies = Movie.same_directors(@movie.director)
+      render 'similar'
+    end
+  end
+
 
   private
   # Making "internal" methods private is not required, but is a common practice.
   # This helps make clear which methods respond to requests, and which ones do not.
   def movie_params
-    params.require(:movie).permit(:title, :rating, :description, :release_date)
+    params.require(:movie).permit(:title, :rating, :description, :release_date, :director)
   end
 end
